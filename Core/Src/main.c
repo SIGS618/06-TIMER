@@ -99,7 +99,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       default:
         break;
     }
-    HAL_UART_Receive_IT(&huart1, uart_rx_data, 2); // 重新开启串口中断
   }
 }
 
@@ -127,7 +126,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 }
 
 void parse_cmd(void) { // 解析命令
-  __disable_irq();
+  __disable_irq(); // 关闭所有中断
   rx_buf.head = (rx_buf.head + 1) % MAX_CB_SIZE;
   uint8_t *start = rx_buf.blocks[rx_buf.head].start;
   int size = rx_buf.blocks[rx_buf.head].size;
@@ -143,6 +142,9 @@ void parse_cmd(void) { // 解析命令
       break;
     case 's':
       set_speed(cmd+1, size-1);
+      break;
+    default:
+      break;
   }
   free(cmd);
 }
@@ -188,7 +190,7 @@ void set_speed(const uint8_t *digits, int len)
   HAL_TIM_Base_Stop_IT(&htim6);
   HAL_TIM_Base_DeInit(&htim6);
   // 重新设置tim6的period
-  htim6.Init.Period = interval*10 - 1;
+  htim6.Init.Period = interval * 10 - 1;
   HAL_TIM_Base_Init(&htim6);
   HAL_TIM_Base_Start_IT(&htim6); // 基本定时器, 产生中断, 在终端中调节PWM
 }
@@ -240,8 +242,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    while(Uart_Buffer_isEmpty(&rx_buf)); // 等待命令到来
-    parse_cmd();
+    if (!Uart_Buffer_isEmpty(&rx_buf)) // 等待命令到来
+      parse_cmd(); // 非阻塞式
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
