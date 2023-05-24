@@ -26,8 +26,10 @@
 /* USER CODE BEGIN Includes */
 #include "LED.h"
 #include "buffer.h"
-#include "string.h"
+
+#include "stdio.h"
 #include "stdlib.h"
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,8 +54,9 @@
 
 /* USER CODE BEGIN PV */
 
-Uart_Buffer_TypeDef rx_buf;
+Uart_Buffer_TypeDef RX_BUF;
 uint8_t uart_rx_data[MAX_RX_SIZE];
+uint8_t uart_tx_data[MAX_TX_SIZE];
 
 int pattern = 3;
 uint8_t cnt = 0;     // 模式1
@@ -106,19 +109,16 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
   if (huart == &huart1) {
     // 如果buffer已满, 不再写入新的数据
-    if(Uart_Buffer_isFull(&rx_buf)) return;
-
-    // echo 回写
-    HAL_UART_Transmit_IT(&huart1, uart_rx_data, Size);
+    if(Uart_Buffer_isFull(&RX_BUF)) return;
 
     // 入队操作
-    rx_buf.tail = (rx_buf.tail + 1) % MAX_CB_SIZE;
-    if(Size >= MAX_BUF_SIZE - rx_buf.cnt) // 当前要写入的字节数大于剩余空间, 缓存"回卷"
-      rx_buf.blocks[rx_buf.tail].start = rx_buf.data;
+    RX_BUF.tail = (RX_BUF.tail + 1) % MAX_CB_SIZE;
+    if(Size >= MAX_BUF_SIZE - RX_BUF.cnt) // 当前要写入的字节数大于剩余空间, 缓存"回卷"
+      RX_BUF.blocks[RX_BUF.tail].start = RX_BUF.data;
     else
-      rx_buf.blocks[rx_buf.tail].start = rx_buf.data + rx_buf.cnt;
-    memcpy(rx_buf.blocks[rx_buf.tail].start, uart_rx_data, Size);
-    rx_buf.blocks[rx_buf.tail].size = Size;
+      RX_BUF.blocks[RX_BUF.tail].start = RX_BUF.data + RX_BUF.cnt;
+    memcpy(RX_BUF.blocks[RX_BUF.tail].start, uart_rx_data, Size);
+    RX_BUF.blocks[RX_BUF.tail].size = Size;
 
     // 再次开启中断
     HAL_UARTEx_ReceiveToIdle_IT(&huart1, uart_rx_data, MAX_RX_SIZE);
@@ -127,14 +127,13 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 
 void parse_cmd(void) { // 解析命令
   __disable_irq(); // 关闭所有中断
-  rx_buf.head = (rx_buf.head + 1) % MAX_CB_SIZE;
-  uint8_t *start = rx_buf.blocks[rx_buf.head].start;
-  int size = rx_buf.blocks[rx_buf.head].size;
+  RX_BUF.head = (RX_BUF.head + 1) % MAX_CB_SIZE;
+  uint8_t *start = RX_BUF.blocks[RX_BUF.head].start;
+  int size = RX_BUF.blocks[RX_BUF.head].size;
 
   uint8_t *cmd = (uint8_t *) malloc(size);
   memcpy(cmd, start, size);
   __enable_irq();
-
 
   switch (cmd[0]) {
     case 'p':
@@ -147,6 +146,14 @@ void parse_cmd(void) { // 解析命令
       break;
   }
   free(cmd);
+
+  // 回写当前工作状态: 模式 + 速度, 发送数据模板: pattern:%d interval: %dms
+  // 计算LED变换间隔, 单位ms
+  uint32_t interval = (htim6.Init.Period + 1) / 10;
+  sprintf((char *)uart_tx_data, "pattern: %d interval: %lums", pattern, interval);
+  HAL_UART_Transmit_IT(&huart1, uart_tx_data, strlen((char *)uart_tx_data));
+  /* 踩坑点1: uart_tx_data[]数组需要被定义为全局变量, 否则sprintf()函数无法正确运行
+   * todo: stdio.h过于臃肿, 编译出来的程序大了~26KB */
 }
 
 void set_pattern(int mode)
@@ -228,7 +235,7 @@ int main(void)
   MX_TIM6_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  Uart_Buffer_Init(&rx_buf);
+  Uart_Buffer_Init(&RX_BUF);
   // 开启串口空闲中断, stm32会在接收Size字节或空闲时产生中断
   HAL_UARTEx_ReceiveToIdle_IT(&huart1, uart_rx_data, MAX_RX_SIZE);
   HAL_TIM_Base_Start(&htim5); // 通用定时器, 输出PWM控制LED
@@ -242,7 +249,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    if (!Uart_Buffer_isEmpty(&rx_buf)) // 等待命令到来
+    if (!Uart_Buffer_isEmpty(&RX_BUF)) // 等待命令到来
       parse_cmd(); // 非阻塞式
     /* USER CODE END WHILE */
 

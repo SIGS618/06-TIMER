@@ -10,6 +10,7 @@
 #define MAX_BUF_SIZE 64
 #define MAX_CB_SIZE  10
 #define MAX_RX_SIZE  6
+#define MAX_TX_SIZE  40
 
 typedef struct {
   uint8_t *start;
