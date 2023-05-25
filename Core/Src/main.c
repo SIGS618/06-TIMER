@@ -111,14 +111,8 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     // 如果buffer已满, 不再写入新的数据
     if(Uart_Buffer_isFull(&RX_BUF)) return;
 
-    // 入队操作
-    RX_BUF.tail = (RX_BUF.tail + 1) % MAX_CB_SIZE;
-    if(Size >= MAX_BUF_SIZE - RX_BUF.cnt) // 当前要写入的字节数大于剩余空间, 缓存"回卷"
-      RX_BUF.blocks[RX_BUF.tail].start = RX_BUF.data;
-    else
-      RX_BUF.blocks[RX_BUF.tail].start = RX_BUF.data + RX_BUF.cnt;
-    memcpy(RX_BUF.blocks[RX_BUF.tail].start, uart_rx_data, Size);
-    RX_BUF.blocks[RX_BUF.tail].size = Size;
+    // 入队
+    Uart_Buffer_Push(&RX_BUF, uart_rx_data, Size);
 
     // 再次开启中断
     HAL_UARTEx_ReceiveToIdle_IT(&huart1, uart_rx_data, MAX_RX_SIZE);
@@ -126,21 +120,18 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 }
 
 void parse_cmd(void) { // 解析命令
-  __disable_irq(); // 关闭所有中断
-  RX_BUF.head = (RX_BUF.head + 1) % MAX_CB_SIZE;
-  uint8_t *start = RX_BUF.blocks[RX_BUF.head].start;
-  int size = RX_BUF.blocks[RX_BUF.head].size;
+  // 出队
+  DataBlocks_TypeDef *dblock = Uart_Buffer_Pop(&RX_BUF);
 
-  uint8_t *cmd = (uint8_t *) malloc(size);
-  memcpy(cmd, start, size);
-  __enable_irq();
+  uint8_t *cmd = (uint8_t *) malloc(dblock->size);
+  memcpy(cmd, dblock->start, dblock->size);
 
   switch (cmd[0]) {
     case 'p':
       set_pattern(cmd[1] - '0');
       break;
     case 's':
-      set_speed(cmd+1, size-1);
+      set_speed(cmd+1, dblock->size-1);
       break;
     default:
       break;
