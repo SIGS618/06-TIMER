@@ -26,6 +26,8 @@ typedef struct {
   int cnt; // 当前总共接收了多少字节
 } UART_Buffer_TypeDef;
 
+extern UART_Buffer_TypeDef RX_BUF, TX_BUF;
+
 void UART_Buffer_Init(UART_Buffer_TypeDef* buf);
 
 int UART_Buffer_isEmpty(UART_Buffer_TypeDef* buf);

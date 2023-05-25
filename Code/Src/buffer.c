@@ -5,6 +5,8 @@
 #include "buffer.h"
 #include "string.h"
 
+UART_Buffer_TypeDef RX_BUF, TX_BUF;
+
 void UART_Buffer_Init(UART_Buffer_TypeDef* buf)
 {
   // buffer初始化

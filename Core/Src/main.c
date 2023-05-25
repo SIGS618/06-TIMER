@@ -53,7 +53,6 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-UART_Buffer_TypeDef RX_BUF, TX_BUF;
 uint8_t uart_rx_data[MAX_RX_SIZE];
 //uint8_t uart_tx_data[MAX_TX_SIZE];
 
