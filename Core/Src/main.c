@@ -24,10 +24,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "uart.h"
 #include "LED.h"
 #include "buffer.h"
 
-#include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
 /* USER CODE END Includes */
@@ -53,10 +53,13 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
-Uart_Buffer_TypeDef RX_BUF;
+UART_Buffer_TypeDef RX_BUF, TX_BUF;
 uint8_t uart_rx_data[MAX_RX_SIZE];
-uint8_t uart_tx_data[MAX_TX_SIZE];
+//uint8_t uart_tx_data[MAX_TX_SIZE];
+
+// 用于串口输出状态
+uint8_t str_pattern[MAX_RX_SIZE];
+uint8_t str_interval[MAX_RX_SIZE];
 
 int pattern = 3;
 uint8_t cnt = 0;     // 模式1
@@ -105,14 +108,24 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   }
 }
 
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if (huart == &huart1) {
+    if (!UART_Buffer_isEmpty(&TX_BUF)) { // 发送缓冲区非空
+      DataBlocks_TypeDef *dblock = UART_Buffer_Pop(&TX_BUF);
+      HAL_UART_Transmit_IT(&huart1, dblock->start, dblock->size);
+    }
+  }
+}
+
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
   if (huart == &huart1) {
     // 如果buffer已满, 不再写入新的数据
-    if(Uart_Buffer_isFull(&RX_BUF)) return;
+    if(UART_Buffer_isFull(&RX_BUF)) return;
 
     // 入队
-    Uart_Buffer_Push(&RX_BUF, uart_rx_data, Size);
+    UART_Buffer_Push(&RX_BUF, uart_rx_data, Size);
 
     // 再次开启中断
     HAL_UARTEx_ReceiveToIdle_IT(&huart1, uart_rx_data, MAX_RX_SIZE);
@@ -121,7 +134,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 
 void parse_cmd(void) { // 解析命令
   // 出队
-  DataBlocks_TypeDef *dblock = Uart_Buffer_Pop(&RX_BUF);
+  DataBlocks_TypeDef *dblock = UART_Buffer_Pop(&RX_BUF);
 
   uint8_t *cmd = (uint8_t *) malloc(dblock->size);
   memcpy(cmd, dblock->start, dblock->size);
@@ -129,9 +142,11 @@ void parse_cmd(void) { // 解析命令
   switch (cmd[0]) {
     case 'p':
       set_pattern(cmd[1] - '0');
+      memcpy(str_pattern, cmd+1, dblock->size-1);
       break;
     case 's':
       set_speed(cmd+1, dblock->size-1);
+      memcpy(str_interval, cmd+1, dblock->size-1);
       break;
     default:
       break;
@@ -140,11 +155,15 @@ void parse_cmd(void) { // 解析命令
 
   // 回写当前工作状态: 模式 + 速度, 发送数据模板: pattern:%d interval: %dms
   // 计算LED变换间隔, 单位ms
-  uint32_t interval = (htim6.Init.Period + 1) / 10;
-  sprintf((char *)uart_tx_data, "pattern: %d interval: %lums", pattern, interval);
-  HAL_UART_Transmit_IT(&huart1, uart_tx_data, strlen((char *)uart_tx_data));
-  /* 踩坑点1: uart_tx_data[]数组需要被定义为全局变量, 否则sprintf()函数无法正确运行
-   * todo: stdio.h过于臃肿, 编译出来的程序大了~26KB */
+//  uint32_t interval = (htim6.Init.Period + 1) / 10;
+//  sprintf((char *)uart_tx_data, "pattern: %d interval: %lums", pattern, interval);
+//  HAL_UART_Transmit_IT(&huart1, uart_tx_data, strlen((char *)uart_tx_data));
+  /* 踩坑点1: uart_tx_data[]数组需要被定义为全局变量, 否则sprintf()函数无法正确运行 */
+  UART_Transmit_IT(&huart1, (uint8_t *)"pattern: ", 9, &TX_BUF);
+  UART_Transmit_IT(&huart1, str_pattern, sizeof(str_pattern), &TX_BUF);
+  UART_Transmit_IT(&huart1, (uint8_t *)", interval: ", 12, &TX_BUF);
+  UART_Transmit_IT(&huart1, str_interval, sizeof(str_interval), &TX_BUF);
+  UART_Transmit_IT(&huart1, (uint8_t *)"ms", 2, &TX_BUF);
 }
 
 void set_pattern(int mode)
@@ -226,7 +245,9 @@ int main(void)
   MX_TIM6_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  Uart_Buffer_Init(&RX_BUF);
+  // 初始化接收/发送buffer
+  UART_Buffer_Init(&TX_BUF);
+  UART_Buffer_Init(&RX_BUF);
   // 开启串口空闲中断, stm32会在接收Size字节或空闲时产生中断
   HAL_UARTEx_ReceiveToIdle_IT(&huart1, uart_rx_data, MAX_RX_SIZE);
   HAL_TIM_Base_Start(&htim5); // 通用定时器, 输出PWM控制LED
@@ -240,7 +261,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    if (!Uart_Buffer_isEmpty(&RX_BUF)) // 等待命令到来
+    if (!UART_Buffer_isEmpty(&RX_BUF)) // 等待命令到来
       parse_cmd(); // 非阻塞式
     /* USER CODE END WHILE */
 
