@@ -723,7 +723,7 @@ uint32_t HAL_RCCEx_GetPeriphCLKFreq(uint32_t PeriphClk)
       /* Check if I2S clock selection is PLL VCO Output divided by PLLR used as I2S clock */
       case RCC_I2SAPB1CLKSOURCE_PLLR:
         {
-          /* Configure the PLL division factor cnt */
+          /* Configure the PLL division factor R */
           /* PLL_VCO Input  = PLL_SOURCE/PLLM */
           if((RCC->PLLCFGR & RCC_PLLCFGR_PLLSRC) == RCC_PLLSOURCE_HSE)
           {
@@ -802,7 +802,7 @@ uint32_t HAL_RCCEx_GetPeriphCLKFreq(uint32_t PeriphClk)
         /* Check if I2S clock selection is PLL VCO Output divided by PLLR used as I2S clock */
       case RCC_I2SAPB2CLKSOURCE_PLLR:
         {
-          /* Configure the PLL division factor cnt */
+          /* Configure the PLL division factor R */
           /* PLL_VCO Input  = PLL_SOURCE/PLLM */
           if((RCC->PLLCFGR & RCC_PLLCFGR_PLLSRC) == RCC_PLLSOURCE_HSE)
           {
@@ -1783,7 +1783,7 @@ uint32_t HAL_RCCEx_GetPeriphCLKFreq(uint32_t PeriphClk)
       /* Check if I2S clock selection is PLL VCO Output divided by PLLR used as I2S clock */
       case RCC_I2SAPB1CLKSOURCE_PLLR:
         {
-          /* Configure the PLL division factor cnt */
+          /* Configure the PLL division factor R */
           /* PLL_VCO Input  = PLL_SOURCE/PLLM */
           if((RCC->PLLCFGR & RCC_PLLCFGR_PLLSRC) == RCC_PLLSOURCE_HSE)
           {
@@ -1869,7 +1869,7 @@ uint32_t HAL_RCCEx_GetPeriphCLKFreq(uint32_t PeriphClk)
         /* Check if I2S clock selection is PLL VCO Output divided by PLLR used as I2S clock */
       case RCC_I2SAPB2CLKSOURCE_PLLR:
         {
-          /* Configure the PLL division factor cnt */
+          /* Configure the PLL division factor R */
           /* PLL_VCO Input  = PLL_SOURCE/PLLM */
           if((RCC->PLLCFGR & RCC_PLLCFGR_PLLSRC) == RCC_PLLSOURCE_HSE)
           {
@@ -2099,7 +2099,7 @@ uint32_t HAL_RCCEx_GetPeriphCLKFreq(uint32_t PeriphClk)
       /* Check if I2S clock selection is PLL VCO Output divided by PLLR used as I2S clock */
       case RCC_I2SAPBCLKSOURCE_PLLR:
         {
-          /* Configure the PLL division factor cnt */
+          /* Configure the PLL division factor R */
           /* PLL_VCO Input  = PLL_SOURCE/PLLM */
           if((RCC->PLLCFGR & RCC_PLLCFGR_PLLSRC) == RCC_PLLSOURCE_HSE)
           {

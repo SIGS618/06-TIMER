@@ -56,31 +56,31 @@
 uint8_t uart_rx_data[MAX_RX_SIZE];
 //uint8_t uart_tx_data[MAX_TX_SIZE];
 
-// ÓÃÓÚ´®¿ÚÊä³ö×´Ì¬
+// ç”¨äºä¸²å£è¾“å‡ºçŠ¶æ€
 uint8_t str_pattern[MAX_RX_SIZE];
 uint8_t str_interval[MAX_RX_SIZE];
 
 int pattern = 3;
-uint8_t cnt = 0;     // Ä£Ê½1
-uint8_t idx_seq;     // Ä£Ê½1¡¢2ÖĞ, RGBĞòÁĞÏÂ±ê
-uint8_t R_value = 0; // Ä£Ê½3
-int flag_inc = 1;    // ±êÖ¾Î»: 0-RGBÖµµİ¼õ, 1-RGBÖµµİÔö
+uint8_t cnt = 0;     // æ¨¡å¼1
+uint8_t idx_seq;     // æ¨¡å¼1ã€2ä¸­, RGBåºåˆ—ä¸‹æ ‡
+uint8_t R_value = 0; // æ¨¡å¼3
+int flag_inc = 1;    // æ ‡å¿—ä½: 0-RGBå€¼é€’å‡, 1-RGBå€¼é€’å¢
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-void parse_cmd(void); // ½âÎöÃüÁî
-void set_pattern(int mode); // ÉèÖÃÔËĞĞÄ£Ê½
-void set_speed(const uint8_t *digits, int len); // ÉèÖÃËÙ¶È
+void parse_cmd(void); // è§£æå‘½ä»¤
+void set_pattern(int mode); // è®¾ç½®è¿è¡Œæ¨¡å¼
+void set_speed(const uint8_t *digits, int len); // è®¾ç½®é€Ÿåº¦
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  if(htim == &htim6) { // ÅĞ¶ÏÖĞ¶ÏÀ´Ô´
-    switch (pattern) { // ¸ù¾İ²»Í¬Ä£Ê½ÉèÖÃ¶ÔÓ¦LED
+  if(htim == &htim6) { // åˆ¤æ–­ä¸­æ–­æ¥æº
+    switch (pattern) { // æ ¹æ®ä¸åŒæ¨¡å¼è®¾ç½®å¯¹åº”LED
       case 1:
         __HAL_TIM_SET_COMPARE(&htim5, LED_R_CHANNEL, rgb_seq_p1[idx_seq].R * RGB_FACTOR);
         __HAL_TIM_SET_COMPARE(&htim5, LED_G_CHANNEL, rgb_seq_p1[idx_seq].G * RGB_FACTOR);
@@ -110,7 +110,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
   if (huart == &huart1) {
-    if (!UART_Buffer_isEmpty(&TX_BUF)) { // ·¢ËÍ»º³åÇø·Ç¿Õ
+    if (!UART_Buffer_isEmpty(&TX_BUF)) { // å‘é€ç¼“å†²åŒºéç©º
       DataBlocks_TypeDef *dblock = UART_Buffer_Pop(&TX_BUF);
       HAL_UART_Transmit_IT(&huart1, dblock->start, dblock->size);
     }
@@ -120,19 +120,19 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
   if (huart == &huart1) {
-    // Èç¹ûbufferÒÑÂú, ²»ÔÙĞ´ÈëĞÂµÄÊı¾İ
+    // å¦‚æœbufferå·²æ»¡, ä¸å†å†™å…¥æ–°çš„æ•°æ®
     if(UART_Buffer_isFull(&RX_BUF)) return;
 
-    // Èë¶Ó
+    // å…¥é˜Ÿ
     UART_Buffer_Push(&RX_BUF, uart_rx_data, Size);
 
-    // ÔÙ´Î¿ªÆôÖĞ¶Ï
+    // å†æ¬¡å¼€å¯ä¸­æ–­
     HAL_UARTEx_ReceiveToIdle_IT(&huart1, uart_rx_data, MAX_RX_SIZE);
   }
 }
 
-void parse_cmd(void) { // ½âÎöÃüÁî
-  // ³ö¶Ó
+void parse_cmd(void) { // è§£æå‘½ä»¤
+  // å‡ºé˜Ÿ
   DataBlocks_TypeDef *dblock = UART_Buffer_Pop(&RX_BUF);
 
   uint8_t *cmd = (uint8_t *) malloc(dblock->size);
@@ -152,12 +152,9 @@ void parse_cmd(void) { // ½âÎöÃüÁî
   }
   free(cmd);
 
-  // »ØĞ´µ±Ç°¹¤×÷×´Ì¬: Ä£Ê½ + ËÙ¶È, ·¢ËÍÊı¾İÄ£°å: pattern:%d interval: %dms
-  // ¼ÆËãLED±ä»»¼ä¸ô, µ¥Î»ms
-//  uint32_t interval = (htim6.Init.Period + 1) / 10;
-//  sprintf((char *)uart_tx_data, "pattern: %d interval: %lums", pattern, interval);
-//  HAL_UART_Transmit_IT(&huart1, uart_tx_data, strlen((char *)uart_tx_data));
-  /* ²È¿Óµã1: uart_tx_data[]Êı×éĞèÒª±»¶¨ÒåÎªÈ«¾Ö±äÁ¿, ·ñÔòsprintf()º¯ÊıÎŞ·¨ÕıÈ·ÔËĞĞ */
+  // å›å†™å½“å‰å·¥ä½œçŠ¶æ€: æ¨¡å¼ + é€Ÿåº¦, å‘é€æ•°æ®æ¨¡æ¿: pattern:%d interval: %dms
+  // è®¡ç®—LEDå˜æ¢é—´éš”, å•ä½ms
+  /* è¸©å‘ç‚¹1: uart_tx_data[]æ•°ç»„éœ€è¦è¢«å®šä¹‰ä¸ºå…¨å±€å˜é‡, å¦åˆ™sprintf()å‡½æ•°æ— æ³•æ­£ç¡®è¿è¡Œ */
   UART_Transmit_IT(&huart1, (uint8_t *)"pattern: ", 9, &TX_BUF);
   UART_Transmit_IT(&huart1, str_pattern, sizeof(str_pattern), &TX_BUF);
   UART_Transmit_IT(&huart1, (uint8_t *)", interval: ", 12, &TX_BUF);
@@ -196,19 +193,14 @@ void set_pattern(int mode)
 }
 
 void set_speed(const uint8_t *digits, int len)
-{ // digitsÎªĞèÒªÉèÖÃµÄ¼ä¸ô(µ¥Î»Îªms)µÄ×Ö·û´®, lenÎª¸Ã×Ö·û´®³¤¶È
+{ // digitsä¸ºéœ€è¦è®¾ç½®çš„é—´éš”(å•ä½ä¸ºms)çš„å­—ç¬¦ä¸², lenä¸ºè¯¥å­—ç¬¦ä¸²é•¿åº¦
   int interval = 0;
   for (int i = 0; i < len; i++) {
     interval *= 10;
     interval += digits[i]-'0';
   }
-  // DeInit tim6
-  HAL_TIM_Base_Stop_IT(&htim6);
-  HAL_TIM_Base_DeInit(&htim6);
-  // ÖØĞÂÉèÖÃtim6µÄperiod
-  htim6.Init.Period = interval * 10 - 1;
-  HAL_TIM_Base_Init(&htim6);
-  HAL_TIM_Base_Start_IT(&htim6); // »ù±¾¶¨Ê±Æ÷, ²úÉúÖĞ¶Ï, ÔÚÖÕ¶ËÖĞµ÷½ÚPWM
+  // é‡æ–°è®¾ç½®tim6çš„period, å³è‡ªåŠ¨é‡è½½å€¼autoreload value
+  __HAL_TIM_SET_AUTORELOAD(&htim6, interval * 10 - 1);
 }
 /* USER CODE END 0 */
 
@@ -244,13 +236,13 @@ int main(void)
   MX_TIM6_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  // ³õÊ¼»¯½ÓÊÕ/·¢ËÍbuffer
+  // åˆå§‹åŒ–æ¥æ”¶/å‘é€buffer
   UART_Buffer_Init(&TX_BUF);
   UART_Buffer_Init(&RX_BUF);
-  // ¿ªÆô´®¿Ú¿ÕÏĞÖĞ¶Ï, stm32»áÔÚ½ÓÊÕSize×Ö½Ú»ò¿ÕÏĞÊ±²úÉúÖĞ¶Ï
+  // å¼€å¯ä¸²å£ç©ºé—²ä¸­æ–­, stm32ä¼šåœ¨æ¥æ”¶Sizeå­—èŠ‚æˆ–ç©ºé—²æ—¶äº§ç”Ÿä¸­æ–­
   HAL_UARTEx_ReceiveToIdle_IT(&huart1, uart_rx_data, MAX_RX_SIZE);
-  HAL_TIM_Base_Start(&htim5); // Í¨ÓÃ¶¨Ê±Æ÷, Êä³öPWM¿ØÖÆLED
-  HAL_TIM_Base_Start_IT(&htim6); // »ù±¾¶¨Ê±Æ÷, ²úÉúÖĞ¶Ï, ÔÚÖÕ¶ËÖĞµ÷½ÚPWM
+  HAL_TIM_Base_Start(&htim5); // é€šç”¨å®šæ—¶å™¨, è¾“å‡ºPWMæ§åˆ¶LED
+  HAL_TIM_Base_Start_IT(&htim6); // åŸºæœ¬å®šæ—¶å™¨, äº§ç”Ÿä¸­æ–­, åœ¨ç»ˆç«¯ä¸­è°ƒèŠ‚PWM
   HAL_TIM_PWM_Start(&htim5, LED_R_CHANNEL);
   HAL_TIM_PWM_Start(&htim5, LED_G_CHANNEL);
   HAL_TIM_PWM_Start(&htim5, LED_B_CHANNEL);
@@ -260,8 +252,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    if (!UART_Buffer_isEmpty(&RX_BUF)) // µÈ´ıÃüÁîµ½À´
-      parse_cmd(); // ·Ç×èÈûÊ½
+    if (!UART_Buffer_isEmpty(&RX_BUF)) // ç­‰å¾…å‘½ä»¤åˆ°æ¥
+      parse_cmd(); // éé˜»å¡å¼
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

@@ -190,12 +190,12 @@ __STATIC_INLINE void ARM_MPU_SetMemAttr(uint8_t idx, uint8_t attr)
 
 #ifdef MPU_NS
 /** Set the memory attribute encoding to the Non-secure MPU.
-* \param idx_seq The attribute index to be set [0-7]
+* \param idx The attribute index to be set [0-7]
 * \param attr The attribute value to be set.
 */
-__STATIC_INLINE void ARM_MPU_SetMemAttr_NS(uint8_t idx_seq, uint8_t attr)
+__STATIC_INLINE void ARM_MPU_SetMemAttr_NS(uint8_t idx, uint8_t attr)
 {
-  ARM_MPU_SetMemAttrEx(MPU_NS, idx_seq, attr);
+  ARM_MPU_SetMemAttrEx(MPU_NS, idx, attr);
 }
 #endif
 

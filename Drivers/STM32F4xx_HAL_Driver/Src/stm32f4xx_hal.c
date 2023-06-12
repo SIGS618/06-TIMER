@@ -436,7 +436,7 @@ __weak void HAL_ResumeTick(void)
 
 /**
   * @brief  Returns the HAL revision
-  * @retval version : 0xXYZR (8bits for each decimal, cnt for RC)
+  * @retval version : 0xXYZR (8bits for each decimal, R for RC)
   */
 uint32_t HAL_GetHalVersion(void)
 {
