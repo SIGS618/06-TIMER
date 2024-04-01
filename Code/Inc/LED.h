@@ -8,9 +8,9 @@
 #include "stm32f4xx_hal.h"
 
 typedef struct {
-  uint8_t R;
-  uint8_t G;
-  uint8_t B;
+    uint8_t R;
+    uint8_t G;
+    uint8_t B;
 } RGB;
 
 extern RGB rgb_seq_p1[];
