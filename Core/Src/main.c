@@ -79,14 +79,6 @@ void set_speed(const uint8_t *digits, int len); // 设置速度
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void UART_Transmit(UART_HandleTypeDef *huart, const uint8_t *pData, uint16_t Size) {
-    if (huart->gState == HAL_UART_STATE_READY)
-        HAL_UART_Transmit_IT(huart, pData, Size);
-    else { // huart->gState == HAL_UART_STATE_BUSY
-        UART_Buffer_pushBytes(TX_BUF, pData, Size);
-    }
-}
-
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     if (htim == &htim6) { // 判断中断来源
         switch (pattern) { // 根据不同模式设置对应LED
@@ -114,6 +106,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
                 break;
         }
     }
+}
+
+void UART_Transmit(UART_HandleTypeDef *huart, const uint8_t *pData, uint16_t Size) {
+    UART_Buffer_pushBytes(TX_BUF, pData, Size);
+    if (huart->gState == HAL_UART_STATE_READY)
+        HAL_UART_Transmit_IT(huart, pData, Size);
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
@@ -157,9 +155,8 @@ void parse_cmd() { // 解析命令
 
     // 回写当前工作状态: 模式 + 速度, 发送数据模板: pattern:%d interval: %dms
     // 计算LED变换间隔, 单位ms
-//    sprintf(uart_tx_data, "pattern: %d, interval: %sms", pattern, str_interval);
-//    // TODO: 为什么不输出了?
-//    UART_Transmit(&huart1, (uint8_t *) uart_tx_data, strlen(uart_tx_data));
+    sprintf(uart_tx_data, "pattern: %d, interval: %sms", pattern, str_interval);
+    UART_Transmit(&huart1, (uint8_t *) uart_tx_data, strlen(uart_tx_data));
 }
 
 void set_pattern(int mode) {
@@ -247,10 +244,8 @@ int main(void) {
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
     while (1) {
-        if (!UART_Buffer_isEmpty(RX_BUF)) { // 等待命令到来
-            UART_Transmit(&huart1, (uint8_t *)"hello\r\n", 7);
+        if (!UART_Buffer_isEmpty(RX_BUF)) // 等待命令到来
             parse_cmd(); // 非阻塞式
-        }
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
