@@ -3,13 +3,13 @@
 //
 
 #include <cstring>
-#include "buffer.h"
+#include "uart_buffer.h"
 
-bool Buffer::isEmpty() {
-    return data_blocks.empty();
+bool UART_Buffer::isEmpty() {
+    return buffer.empty();
 }
 
-void Buffer::pushData(const uint8_t *data, int size) {
+void UART_Buffer::pushBytes(const uint8_t *data, uint16_t size) {
     __disable_irq();
     // 1. 声明并初始化新的数据块
     DataBlock_TypeDef new_db;
@@ -20,17 +20,15 @@ void Buffer::pushData(const uint8_t *data, int size) {
     memcpy(new_db.start, data, size);
 
     // 3. 将数据块添加到队列尾
-    data_blocks.push(new_db);
+    buffer.push(new_db);
     __enable_irq();
 }
 
-DataBlock_TypeDef *Buffer::popDataBlock() {
-    return &data_blocks.front();
+DataBlock_TypeDef *UART_Buffer::front() {
+    return &buffer.front();
 }
 
-void Buffer::delFront() {
-    delete data_blocks.front().start; // 释放内存
-    data_blocks.pop();
+void UART_Buffer::pop() {
+    delete[] buffer.front().start; // 释放内存
+    buffer.pop();
 }
-
-

@@ -25,11 +25,11 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "printf.h"
-#include "buffer.h"
-#include "uart.h"
+#include "common_types.h"
+#include "uart_buffer_interface.h"
 #include "LED.h"
 
-#include <cstring>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,6 +54,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+void *TX_BUF, *RX_BUF;
+
 char uart_tx_data[MAX_TX_SIZE];
 uint8_t uart_rx_data[MAX_RX_SIZE];
 
@@ -77,6 +79,14 @@ void set_speed(const uint8_t *digits, int len); // 设置速度
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void UART_Transmit(UART_HandleTypeDef *huart, const uint8_t *pData, uint16_t Size) {
+    if (huart->gState == HAL_UART_STATE_READY)
+        HAL_UART_Transmit_IT(huart, pData, Size);
+    else { // huart->gState == HAL_UART_STATE_BUSY
+        UART_Buffer_pushBytes(TX_BUF, pData, Size);
+    }
+}
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     if (htim == &htim6) { // 判断中断来源
         switch (pattern) { // 根据不同模式设置对应LED
@@ -109,10 +119,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
     if (huart == &huart1) {
         // 1. 删除队首元素
-        TX_BUF.delFront();
+        UART_Buffer_pop(TX_BUF);
         // 2. 继续发送数据
-        if (!TX_BUF.isEmpty()) { // 发送缓冲区非空
-            DataBlock_TypeDef *db = TX_BUF.popDataBlock();
+        if (!UART_Buffer_isEmpty(TX_BUF)) { // 发送缓冲区非空
+            DataBlock_TypeDef *db = UART_Buffer_front(TX_BUF);
             HAL_UART_Transmit_IT(&huart1, db->start, db->size);
         }
     }
@@ -121,14 +131,14 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
     if (huart == &huart1) {
         // 1. 入队
-        RX_BUF.pushData(uart_rx_data, Size);
+        UART_Buffer_pushBytes(RX_BUF, uart_rx_data, Size);
         // 2. 再次开启中断
         HAL_UARTEx_ReceiveToIdle_IT(&huart1, uart_rx_data, MAX_RX_SIZE);
     }
 }
 
 void parse_cmd() { // 解析命令
-    DataBlock_TypeDef *db = RX_BUF.popDataBlock();
+    DataBlock_TypeDef *db = UART_Buffer_front(RX_BUF);
     uint8_t *cmd = db->start;
 
     switch (cmd[0]) {
@@ -142,12 +152,14 @@ void parse_cmd() { // 解析命令
         default:
             break;
     }
-    RX_BUF.delFront();
+
+    UART_Buffer_pop(RX_BUF);
 
     // 回写当前工作状态: 模式 + 速度, 发送数据模板: pattern:%d interval: %dms
     // 计算LED变换间隔, 单位ms
-    sprintf(uart_tx_data, "pattern: %d, interval: %sms", pattern, str_interval);
-    UART_Transmit_IT(&huart1, (uint8_t *)uart_tx_data, strlen(uart_tx_data));
+//    sprintf(uart_tx_data, "pattern: %d, interval: %sms", pattern, str_interval);
+//    // TODO: 为什么不输出了?
+//    UART_Transmit(&huart1, (uint8_t *) uart_tx_data, strlen(uart_tx_data));
 }
 
 void set_pattern(int mode) {
@@ -195,8 +207,10 @@ void set_speed(const uint8_t *digits, int len) { // digits为需要设置的间�
   * @retval int
   */
 int main(void) {
-    /* USER CODE BEGIN 1 */
 
+    /* USER CODE BEGIN 1 */
+    TX_BUF = UART_Buffer_Create();
+    RX_BUF = UART_Buffer_Create();
     /* USER CODE END 1 */
 
     /* MCU Configuration--------------------------------------------------------*/
@@ -218,8 +232,8 @@ int main(void) {
     /* Initialize all configured peripherals */
     MX_GPIO_Init();
     MX_TIM5_Init();
-    MX_TIM6_Init();
     MX_USART1_UART_Init();
+    MX_TIM6_Init();
     /* USER CODE BEGIN 2 */
     // 开启串口空闲中断, stm32会在接收Size字节或空闲时产生中断
     HAL_UARTEx_ReceiveToIdle_IT(&huart1, uart_rx_data, MAX_RX_SIZE);
@@ -233,8 +247,10 @@ int main(void) {
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
     while (1) {
-        if (!RX_BUF.isEmpty()) // 等待命令到来
+        if (!UART_Buffer_isEmpty(RX_BUF)) { // 等待命令到来
+            UART_Transmit(&huart1, (uint8_t *)"hello\r\n", 7);
             parse_cmd(); // 非阻塞式
+        }
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
